@@ -2,8 +2,11 @@
 #define Physics_Analysis_tautauAlg_H
 //#include <string>
 
+#include "GaudiKernel/ITHistSvc.h"
 #include "tautauAlg/util/MyConst.h"
 #include <vector>
+#include "TH1.h"
+#include "TH1F.h"
 using namespace std;
 
 class tautauAlg : public Algorithm {
@@ -16,7 +19,8 @@ public:
   bool
   correctLeptonMomentumWithFSRPhoton(HepLorentzVector p4lepp,
                                      std::vector<HepLorentzVector> &p4FSRCor);
-  void setPxPyPzE(HepLorentzVector& p4, double px, double py, double pz, double e) const;
+  void setPxPyPzE(HepLorentzVector &p4, double px, double py, double pz,
+                  double e) const;
 
 private:
   // event Num
@@ -29,7 +33,7 @@ private:
   double m_ecms;
   int m_testMC;
 
-  NTuple::Tuple *m_tuple2;
+  NTuple::Tuple *m_tuple3;
 
   NTuple::Item<int> m_rec_run;
   NTuple::Item<int> m_rec_event;
@@ -87,7 +91,9 @@ private:
   NTuple::Item<double> m_probp_1;
   NTuple::Item<double> m_probp_2;
 
-  NTuple::Item<long> m_fgtof_1;
+  NTuple::Item<int> m_nTofInfo_1;
+  NTuple::Item<int> m_nTofInfo_2;
+  NTuple::Item<int> m_fgtof_1;
   NTuple::Item<double> m_counter_1;
   NTuple::Item<double> m_isbarrel_1;
   NTuple::Item<double> m_layertof_1;
@@ -107,7 +113,7 @@ private:
   NTuple::Item<double> m_ene_1;
   NTuple::Item<int> m_nTrk_EMC;
 
-  NTuple::Item<long> m_fgtof_2;
+  NTuple::Item<int> m_fgtof_2;
   NTuple::Item<double> m_counter_2;
   NTuple::Item<double> m_isbarrel_2;
   NTuple::Item<double> m_layertof_2;
@@ -289,7 +295,7 @@ private:
   NTuple::Array<int> ma_pz;
   NTuple::Array<int> ma_e;
 
-  NTuple::Tuple *m_tuple1;
+  NTuple::Tuple *m_tuple2;
   NTuple::Item<int> m_run;
   NTuple::Item<int> m_event;
   NTuple::Item<int> m_idxmc;
@@ -297,7 +303,7 @@ private:
   NTuple::Array<int> m_motheridx;
   NTuple::Matrix<double> m_info_tru;
 
-  NTuple::Tuple *m_tuple3;
+  NTuple::Tuple *m_tuple1;
   NTuple::Item<int> m_within_kine_bounds;
   NTuple::Item<double> m_pi_px;
   NTuple::Item<double> m_pi_py;
@@ -335,12 +341,161 @@ private:
   NTuple::Item<double> m_Gam_IB;
   NTuple::Item<double> m_Gam_SD;
   NTuple::Item<double> m_Gam_int;
+  NTuple::Item<int> m_ngamfromTau;
+  NTuple::Item<int> m_nefrommu;
+  NTuple::Item<int> m_nefromtau;
+  NTuple::Array<int> m_gam_motherIndex;
+  NTuple::Item<int> m_nGam;
+
+  NTuple::Item<int> m_npi0;
+  NTuple::Array<double> m_m_pi0before;
+  NTuple::Array<double> m_m_pi0fit;
+  NTuple::Array<double> m_chi_pi0fit;
+  NTuple::Array<int> m_i1gam_pi0;
+  NTuple::Array<int> m_i2gam_pi0;
+
+  NTuple::Array<double> m_eraw;
+  NTuple::Array<double> m_phi;
+  NTuple::Array<double> m_the;
+
+  NTuple::Array<double> m_dang_pos_e;
+  NTuple::Array<double> m_dthe_pos_e;
+  NTuple::Array<double> m_dphi_pos_e;
+  NTuple::Array<double> m_dang_neg_e;
+  NTuple::Array<double> m_dthe_neg_e;
+  NTuple::Array<double> m_dphi_neg_e;
+  NTuple::Array<double> m_dang_pos_mu;
+  NTuple::Array<double> m_dthe_pos_mu;
+  NTuple::Array<double> m_dphi_pos_mu;
+  NTuple::Array<double> m_dang_neg_mu;
+  NTuple::Array<double> m_dthe_neg_mu;
+  NTuple::Array<double> m_dphi_neg_mu;
+  NTuple::Array<double> m_dang_pos_pi;
+  NTuple::Array<double> m_dthe_pos_pi;
+  NTuple::Array<double> m_dphi_pos_pi;
+  NTuple::Array<double> m_dang_neg_pi;
+  NTuple::Array<double> m_dthe_neg_pi;
+  NTuple::Array<double> m_dphi_neg_pi;
+  NTuple::Array<double> m_dang_pos_k;
+  NTuple::Array<double> m_dthe_pos_k;
+  NTuple::Array<double> m_dphi_pos_k;
+  NTuple::Array<double> m_dang_neg_k;
+  NTuple::Array<double> m_dthe_neg_k;
+  NTuple::Array<double> m_dphi_neg_k;
+
+  NTuple::Item<double> m_px_pos_e;
+  NTuple::Item<double> m_py_pos_e;
+  NTuple::Item<double> m_pz_pos_e;
+  NTuple::Item<double> m_px_pos_mu;
+  NTuple::Item<double> m_py_pos_mu;
+  NTuple::Item<double> m_pz_pos_mu;
+  NTuple::Item<double> m_px_pos_pi;
+  NTuple::Item<double> m_py_pos_pi;
+  NTuple::Item<double> m_pz_pos_pi;
+  NTuple::Item<double> m_px_pos_k;
+  NTuple::Item<double> m_py_pos_k;
+  NTuple::Item<double> m_pz_pos_k;
+  NTuple::Item<double> m_p_pos;
+  NTuple::Item<double> m_pt_pos;
+
+  NTuple::Item<double> m_px_neg_e;
+  NTuple::Item<double> m_py_neg_e;
+  NTuple::Item<double> m_pz_neg_e;
+  NTuple::Item<double> m_px_neg_mu;
+  NTuple::Item<double> m_py_neg_mu;
+  NTuple::Item<double> m_pz_neg_mu;
+  NTuple::Item<double> m_px_neg_pi;
+  NTuple::Item<double> m_py_neg_pi;
+  NTuple::Item<double> m_pz_neg_pi;
+  NTuple::Item<double> m_px_neg_k;
+  NTuple::Item<double> m_py_neg_k;
+  NTuple::Item<double> m_pz_neg_k;
+  NTuple::Item<double> m_p_neg;
+  NTuple::Item<double> m_pt_neg;
+
+  NTuple::Item<double> m_cang_ee;
+  NTuple::Item<double> m_cthe_ee;
+  NTuple::Item<double> m_cphi_ee;
+  NTuple::Item<double> m_costheta_ee;
+  NTuple::Item<double> m_cang_emu;
+  NTuple::Item<double> m_cthe_emu;
+  NTuple::Item<double> m_cphi_emu;
+  NTuple::Item<double> m_costheta_emu;
+  NTuple::Item<double> m_cang_epi;
+  NTuple::Item<double> m_cthe_epi;
+  NTuple::Item<double> m_cphi_epi;
+  NTuple::Item<double> m_costheta_epi;
+  NTuple::Item<double> m_cang_ek;
+  NTuple::Item<double> m_cthe_ek;
+  NTuple::Item<double> m_cphi_ek;
+  NTuple::Item<double> m_costheta_ek;
+  NTuple::Item<double> m_cang_mue;
+  NTuple::Item<double> m_cthe_mue;
+  NTuple::Item<double> m_cphi_mue;
+  NTuple::Item<double> m_costheta_mue;
+  NTuple::Item<double> m_cang_mumu;
+  NTuple::Item<double> m_cthe_mumu;
+  NTuple::Item<double> m_cphi_mumu;
+  NTuple::Item<double> m_costheta_mumu;
+  NTuple::Item<double> m_cang_mupi;
+  NTuple::Item<double> m_cthe_mupi;
+  NTuple::Item<double> m_cphi_mupi;
+  NTuple::Item<double> m_costheta_mupi;
+  NTuple::Item<double> m_cang_muk;
+  NTuple::Item<double> m_cthe_muk;
+  NTuple::Item<double> m_cphi_muk;
+  NTuple::Item<double> m_costheta_muk;
+  NTuple::Item<double> m_cang_pie;
+  NTuple::Item<double> m_cthe_pie;
+  NTuple::Item<double> m_cphi_pie;
+  NTuple::Item<double> m_costheta_pie;
+  NTuple::Item<double> m_cang_pimu;
+  NTuple::Item<double> m_cthe_pimu;
+  NTuple::Item<double> m_cphi_pimu;
+  NTuple::Item<double> m_costheta_pimu;
+  NTuple::Item<double> m_cang_pipi;
+  NTuple::Item<double> m_cthe_pipi;
+  NTuple::Item<double> m_cphi_pipi;
+  NTuple::Item<double> m_costheta_pipi;
+  NTuple::Item<double> m_cang_pik;
+  NTuple::Item<double> m_cthe_pik;
+  NTuple::Item<double> m_cphi_pik;
+  NTuple::Item<double> m_costheta_pik;
+  NTuple::Item<double> m_cang_ke;
+  NTuple::Item<double> m_cthe_ke;
+  NTuple::Item<double> m_cphi_ke;
+  NTuple::Item<double> m_costheta_ke;
+  NTuple::Item<double> m_cang_kmu;
+  NTuple::Item<double> m_cthe_kmu;
+  NTuple::Item<double> m_cphi_kmu;
+  NTuple::Item<double> m_costheta_kmu;
+  NTuple::Item<double> m_cang_kpi;
+  NTuple::Item<double> m_cthe_kpi;
+  NTuple::Item<double> m_cphi_kpi;
+  NTuple::Item<double> m_costheta_kpi;
+  NTuple::Item<double> m_cang_kk;
+  NTuple::Item<double> m_cthe_kk;
+  NTuple::Item<double> m_cphi_kk;
+  NTuple::Item<double> m_costheta_kk;
+
+  NTuple::Array<double> m_m_egam_pos;
+  NTuple::Array<double> m_m_mugam_pos;
+  NTuple::Array<double> m_m_pigam_pos;
+  NTuple::Array<double> m_m_kgam_pos;
+  NTuple::Array<double> m_m_egam_neg;
+  NTuple::Array<double> m_m_mugam_neg;
+  NTuple::Array<double> m_m_pigam_neg;
+  NTuple::Array<double> m_m_kgam_neg;
+
+  ITHistSvc *m_histSvc;
+
+  TH1F *m_cutflow;
 
   LocalPhotonSelector photonSelector;
-
 };
 
-inline void tautauAlg::setPxPyPzE(HepLorentzVector& p4, double px, double py, double pz, double e) const {
+inline void tautauAlg::setPxPyPzE(HepLorentzVector &p4, double px, double py,
+                                  double pz, double e) const {
   p4.setPx(px);
   p4.setPy(py);
   p4.setPz(pz);
