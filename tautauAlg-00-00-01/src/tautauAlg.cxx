@@ -29,9 +29,11 @@ tautauAlg::tautauAlg(const std::string &name, ISvcLocator *pSvcLocator)
   m_nEvtDisp = 100;
   m_nEvt = 0;
   declareProperty("writeGenOnly", m_writeGenOnly = false);
-  declareProperty("Ecms", m_ecms = 4.26);
-  declareProperty("FSRCor", m_appFSRCorrection = true);
-  declareProperty("m_testMC", m_testMC = 1);
+  declareProperty("Ecms", m_ecms = 4.23);
+  declareProperty("testMC", m_testMC = 1);
+  declareProperty("gamNumCut", m_gamNumCut = 1);
+  declareProperty("pi0Chi2Cut", m_pi0Chi2Cut = 30);
+  declareProperty("pi0NumCut", m_pi0NumCut = 1);
 }
 
 //***************************Fill Tree******************************
@@ -141,8 +143,6 @@ StatusCode tautauAlg::initialize() {
       m_tuple3->addIndexedItem("pdgid", m_rec_idxmc, m_rec_pdgid);
       m_tuple3->addIndexedItem("motheridx", m_rec_idxmc, m_rec_motheridx);
 
-      // 2020.03.14-15,
-      //*****************
       // MDC information
       m_tuple3->addItem("charge_1", m_charge_1);
       m_tuple3->addItem("charge_2", m_charge_2);
@@ -316,7 +316,7 @@ StatusCode tautauAlg::initialize() {
       m_tuple3->addItem("theta_m_22", m_theta_m_22);
       //*****************
 
-      // 2020.04.02 after group meeting
+      // angle between two charged tracks 
       m_tuple3->addItem("ee_angle", m_ee_angle);
       m_tuple3->addItem("emu_angle", m_emu_angle);
       m_tuple3->addItem("mue_angle", m_mue_angle);
@@ -355,10 +355,8 @@ StatusCode tautauAlg::initialize() {
       m_tuple3->addItem("miss_m2_kmu", m_miss_m2_kmu);
       m_tuple3->addItem("miss_m2_pik", m_miss_m2_pik);
       m_tuple3->addItem("miss_m2_kpi", m_miss_m2_kpi);
-      //    ma_nu_e = 0.0;
       m_tuple3->addItem("miss_m2_kk", m_miss_m2_kk);
       m_tuple3->addItem("miss_m2_erho_11", m_miss_m2_erho_11);
-      //    ma_nu_e = 0.0;
       m_tuple3->addItem("miss_m2_erho_12", m_miss_m2_erho_12);
       m_tuple3->addItem("miss_m2_murho_11", m_miss_m2_murho_11);
       m_tuple3->addItem("miss_m2_murho_12", m_miss_m2_murho_12);
@@ -385,10 +383,9 @@ StatusCode tautauAlg::initialize() {
       m_tuple3->addItem("info_gam_fromelp", 8, m_gam_fromelp);
       m_tuple3->addItem("info_elp_corfsr", 8, m_elp_corfsr);
       m_tuple3->addItem("info_elp_mum", 3, m_info_elp_mum);
-      //    ma_nu_e = 0.0;
       m_tuple3->addItem("info_p4_emu", 3, 8, m_info_emu);
 
-      // 2020.03.27 for topology
+      // For topology
       m_tuple3->addItem("nTrackMC", m_nTrack, 0, 100);
       m_tuple3->addIndexedItem("trackIDMC", m_nTrack, ma_trackID);
       m_tuple3->addIndexedItem("trackIndexMC", m_nTrack, ma_trackIndex);
@@ -734,11 +731,7 @@ StatusCode tautauAlg::execute() {
     return StatusCode::SUCCESS;
   }
 
-  // reconstruct 2 good charged tracks, and don't limit the number of good
-  // photons
-  //***************************Select Good Charged
-  // Tracks******************************
-  // 2 good charged tracks
+  // reconstruct 2 good charged tracks
   Hep3Vector xorigin(0, 0, 0);
   VertexParameter m_privxpar;
   MyInitIP myInitIP;
@@ -764,16 +757,14 @@ StatusCode tautauAlg::execute() {
   m_cutflow->Fill(1);
   Ncut[1]++;
 
-  // 2020.03.14, make sure the first track is positive, the second one is
-  // negetive;
-
+  // make sure the first track is positive, the second one is negetive;
   if (icharge[0] == -1) {
     int temidx = iGood[0];
     iGood[0] = iGood[1];
     iGood[1] = temidx;
   }
+  
   //***************************Select Good Photons******************************
-  // nGood photons  n==1
   Vint iGam;
   Vint shelf;
   iGam.clear();
@@ -811,10 +802,12 @@ StatusCode tautauAlg::execute() {
   }
 
   int nGam = iGam.size();
-  //  selection criteria for Gam
-  //  if (!(nGam >= 1))
-  //  return StatusCode::SUCCESS;
   //  std::cout<< "nGam = " << nGam << std::endl;
+  if (nGam > 100 || nGam < m_gamNumCut) {
+    return StatusCode::SUCCESS;
+  }
+  m_cutflow->Fill(2);
+  Ncut[2]++;
   m_nGam = nGam;
 
   int count = 0;
@@ -849,7 +842,8 @@ StatusCode tautauAlg::execute() {
   if (nGam > 3 && nGam < 6) {
     eventFlag = 2;
   }
-  //------------------ missing--Kalman1Cfit-------------------
+ 
+  //------------------ Reconstruct pi0 using Kalman1Cfit-------------------
   int tmp_npi0 = 0;
   int onenumber = 0;
   int twonumber = 0;
@@ -873,7 +867,7 @@ StatusCode tautauAlg::execute() {
         kmfit1c->setChisqCut(9999, 0.05);
         bool oksq = kmfit1c->Fit();
         double pi0chi2 = kmfit1c->chisq();
-        if (!oksq || pi0chi2 > 200)
+        if (!oksq || pi0chi2 > m_pi0Chi2Cut)
           continue;
         if (pi0chi2 < final_pi0chi2) {
           final_pi0chi2 = pi0chi2;
@@ -896,11 +890,13 @@ StatusCode tautauAlg::execute() {
     shelf.erase(shelf.begin() + twonumber - 1);
   }
   m_npi0 = tmp_npi0;
-  if (nGam > 100 || nGam < 1) {
+  
+  if (tmp_npi0 > m_pi0NumCut) {
     return StatusCode::SUCCESS;
   }
-  m_cutflow->Fill(2);
-  Ncut[2]++;
+  m_cutflow->Fill(3);
+  Ncut[3]++;
+
 
   //***************************Save Information******************************
   // 2020.03.14-15, save information of charged tracks
@@ -918,11 +914,11 @@ StatusCode tautauAlg::execute() {
     RecMdcKalTrack::electron, RecMdcKalTrack::muon,  RecMdcKalTrack::pion,
     RecMdcKalTrack::kaon,     RecMdcKalTrack::proton
   };
-  Vint itrk;
+  Vint itrkWithValidEmcShower;
   for (int i = 0; i < nGood; i++) {
     EvtRecTrackIterator itTrk = evtRecTrkCol->begin() + iGood[i];
     if (!(*itTrk)->isMdcTrackValid()) {
-      continue;
+      throw std::runtime_error("This should not happen. The selected good charged tracks are already required to have valid MdcTrack."); 
     }
     RecMdcTrack *mdcTrk = (*itTrk)->mdcTrack();
     if ((*itTrk)->isEmcShowerValid()) {
@@ -932,7 +928,7 @@ StatusCode tautauAlg::execute() {
       double eemc = emcTrk->energy();
       // The E/p
       double evp = eemc / pctrk;
-      itrk.push_back(iGood[i]);
+      itrkWithValidEmcShower.push_back(iGood[i]);
       if (i < 1) {
         // Mdc information for the first track
         RecMdcKalTrack *mdckaltrk = (*itTrk)->mdcKalTrack();
@@ -999,7 +995,7 @@ StatusCode tautauAlg::execute() {
           SmartRefVector<RecTofTrack> tofTrkCol = (*itTrk)->tofTrack();
           SmartRefVector<RecTofTrack>::iterator iter_tof = tofTrkCol.begin();
           int nTofInfo_1 = 0;
-          //@TODO: The following is wrong.
+          //@NOTE: The last value in tofTrkCol is the average value.
           for (; iter_tof != tofTrkCol.end(); iter_tof++) {
             TofHitStatus *status = new TofHitStatus;
             status->setStatus((*iter_tof)->status());
@@ -1122,7 +1118,7 @@ StatusCode tautauAlg::execute() {
           SmartRefVector<RecTofTrack> tofTrkCol = (*itTrk)->tofTrack();
           SmartRefVector<RecTofTrack>::iterator iter_tof = tofTrkCol.begin();
           int nTofInfo_2 = 0;
-          //@TODO: The following is wrong.
+          //@NOTE: The last value in tofTrkCol is the average value.
           for (; iter_tof != tofTrkCol.end(); iter_tof++) {
             TofHitStatus *status = new TofHitStatus;
             status->setStatus((*iter_tof)->status());
@@ -1182,8 +1178,34 @@ StatusCode tautauAlg::execute() {
           m_mucchi2_2 = 300;
         }
       } // the end of the information of the second track
-    }
-  } // the end of the infotmation of charged tracks
+    } // If EmcShowerValid
+  } // the end of the information of charged tracks
+
+
+  int nchrgtrk = itrkWithValidEmcShower.size();
+
+  m_nTrk_EMC = nchrgtrk;
+  if (nchrgtrk != 2) {
+    return StatusCode::SUCCESS;
+  }
+  m_cutflow->Fill(4);
+  Ncut[4]++;
+ 
+ 
+  if (itrkWithValidEmcShower[0] == itrkWithValidEmcShower[1]) {
+    throw std::runtime_error("This is not supposed to happen"); 
+  }
+  //m_cutflow->Fill(5);
+  Ncut[5]++;
+
+  if (!(m_charge_1 * m_charge_2 < 0)) {
+    throw std::runtime_error("This is not supposed to happen"); 
+  }
+  //m_cutflow->Fill(6);
+  Ncut[6]++;
+  
+
+
   //-------------- record angle and invarm ------------------
   Hep3Vector tmp1_p[4];
   Hep3Vector tmp2_p[4];
@@ -1191,15 +1213,13 @@ StatusCode tautauAlg::execute() {
   Vp4 invar;
   for (int i = 0; i < nGood; i++) {
     EvtRecTrackIterator itTrka = evtRecTrkCol->begin() + iGood[i];
-    if (!(*itTrka)->isMdcTrackValid())
-      break;
     RecMdcTrack *mdcTrka = (*itTrka)->mdcTrack();
     double p_tmp = mdcTrka->p();
     double pt_tmp = mdcTrka->pxy();
     Hep3Vector P3_4type[4];
     invar.clear();
     RecMdcKalTrack *mdcKalTrka = (*itTrka)->mdcKalTrack();
-    if (!(mdcKalTrka == nullptr)) {
+    if (mdcKalTrka != nullptr) {
       for (int m = 0; m < 4; m++) {
         RecMdcKalTrack::setPidType(pidtype[m]);
         Hep3Vector tmp_trk;
@@ -1260,8 +1280,9 @@ StatusCode tautauAlg::execute() {
 
     for (int j = 0; j < nGam; j++) {
       EvtRecTrackIterator jtTrka = evtRecTrkCol->begin() + iGam[j];
-      if (!(*jtTrka)->isEmcShowerValid())
-        continue;
+      if (!(*jtTrka)->isEmcShowerValid()){
+        throw std::runtime_error("This should not happen. The selected good photons are already required to have valid EmcShower");
+      }
       RecEmcShower *emcTrka = (*jtTrka)->emcShower();
       double an_eraw = emcTrka->energy();
       double an_phi = emcTrka->phi();
@@ -1582,34 +1603,9 @@ StatusCode tautauAlg::execute() {
   m_cthe_kk = thec_kk * 180 / (CLHEP::pi);
   m_cphi_kk = phic_kk * 180 / (CLHEP::pi);
 
-  m_cutflow->Fill(3);
-  Ncut[3]++;
 
-  // 2020.03.15, to make sure the different ID of two tracks
-  int nchrgtrk = itrk.size();
 
-  // 2020.04.24, check the cut - nTrack in EMC==2
-  m_nTrk_EMC = nchrgtrk;
-  if (nchrgtrk != 2) {
-    return StatusCode::SUCCESS;
-  }
-  m_cutflow->Fill(4);
-  Ncut[4]++;
-  // How can this happen?
-  if (itrk[0] == itrk[1]) {
-    return StatusCode::SUCCESS;
-  }
-  // m_cutflow->Fill(5);
-  Ncut[5]++;
-
-  // 2020.03.15, to make sure the opposite charge of two tracks
-  if (!(m_charge_1 * m_charge_2 < 0)) {
-    return StatusCode::SUCCESS;
-  }
-  //  m_cutflow->Fill(6);
-  Ncut[6]++;
-
-  // 2020.03.15, calculate total momentum of all tracks and photons
+  // calculate total momentum of all tracks and photons
   HepLorentzVector pkal_tot[5];
   HepLorentzVector pkal_Trks[5];
   for (int i = 0; i < 5; i++) {
@@ -1777,12 +1773,12 @@ StatusCode tautauAlg::execute() {
   m_kk_PTEM = (P3_trk1[3] + P3_trk2[3]).perp() /
               (m_ecms - (P3_trk1[3] + P3_trk2[3]).r());
 
-  // 2023.03.27 , selection criteria for PTEM
+  // selection criteria for PTEM
   /* if ( m_epi_PTEM <= 0.05 || m_pie_PTEM <= 0.05)
         return StatusCode::SUCCESS;
      std::cout << "epi_PTEM" << m_epi_PTEM << "  " << m_pie_PTEM << std::endl;
   */
-  // 2020.03.15, reconstruct pi0 and rho, in the variable, for example mrho_mn,
+  // reconstruct pi0 and rho, in the variable, for example mrho_mn,
   // m is the index of pi0, n is the index of charged pi
   if (eventFlag == 1) { // pi0
     double delmpi0 = 999.;
@@ -2406,12 +2402,12 @@ bool tautauAlg::correctLeptonMomentumWithFSRPhoton(
 StatusCode tautauAlg::finalize() {
   MsgStream log(msgSvc(), name());
   log << MSG::INFO << "in finalize()" << endmsg;
-  cout << "Ntot=             " << Ncut[0] << endl;
-  cout << "2_goodTrack=      " << Ncut[1] << endl;
-  cout << "nGoodgam=         " << Ncut[2] << endl;
-  cout << "nTrack0=          " << Ncut[3] << endl;
-  cout << "2_track_emc=      " << Ncut[4] << endl;
-  cout << "differet_id=      " << Ncut[5] << endl;
-  cout << "opposite_charge=  " << Ncut[6] << endl;
+  cout << "Ntot=               " << Ncut[0] << endl;
+  cout << "nGoodTrack==2       " << Ncut[1] << endl;
+  cout << "nGoodGam>=" <<m_gamNumCut<<"         " << Ncut[2] << endl;
+  cout << "nGoodPi0<=" <<m_pi0NumCut<<"         " << Ncut[3] << endl;
+  cout << "nGoodTrack_Emc==2   " << Ncut[4] << endl;
+  cout << "differet_id=        " << Ncut[5] << endl;
+  cout << "opposite_charge=    " << Ncut[6] << endl;
   return StatusCode::SUCCESS;
 }

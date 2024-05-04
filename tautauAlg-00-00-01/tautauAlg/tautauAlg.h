@@ -29,9 +29,11 @@ private:
 
   bool m_writeGenOnly;
   bool m_mctruth;
-  bool m_appFSRCorrection;
   double m_ecms;
   int m_testMC;
+  int m_gamNumCut;
+  double m_pi0Chi2Cut;
+  int m_pi0NumCut;
 
   NTuple::Tuple *m_tuple3;
 
