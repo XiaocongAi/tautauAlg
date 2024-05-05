@@ -7,6 +7,7 @@
 #include <vector>
 #include "TH1.h"
 #include "TH1F.h"
+#include "TH2F.h"
 using namespace std;
 
 class tautauAlg : public Algorithm {
@@ -489,9 +490,22 @@ private:
   NTuple::Array<double> m_m_pigam_neg;
   NTuple::Array<double> m_m_kgam_neg;
 
+  NTuple::Item<int> m_nRecEmcHits;
+  NTuple::Array<int> m_emc_id_theta;
+  NTuple::Array<int> m_emc_id_phi;
+  NTuple::Array<int> m_emc_bc;
+  NTuple::Array<int> m_emc_tdc;
+  NTuple::Array<double> m_emc_energy;
+  NTuple::Array<double> m_emc_x;
+  NTuple::Array<double> m_emc_y;
+  NTuple::Array<double> m_emc_z;
+  NTuple::Array<double> m_emc_pos_theta;
+  NTuple::Array<double> m_emc_pos_phi;
+
   ITHistSvc *m_histSvc;
 
   TH1F *m_cutflow;
+  // TH2F *m_recEmcHitMap;
 
   LocalPhotonSelector photonSelector;
 };

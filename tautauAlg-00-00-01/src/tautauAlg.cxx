@@ -32,7 +32,7 @@ tautauAlg::tautauAlg(const std::string &name, ISvcLocator *pSvcLocator)
   declareProperty("Ecms", m_ecms = 4.23);
   declareProperty("testMC", m_testMC = 1);
   declareProperty("gamNumCut", m_gamNumCut = 1);
-  declareProperty("pi0Chi2Cut", m_pi0Chi2Cut = 30);
+  declareProperty("pi0Chi2Cut", m_pi0Chi2Cut = 100);
   declareProperty("pi0NumCut", m_pi0NumCut = 1);
 }
 
@@ -49,7 +49,11 @@ StatusCode tautauAlg::initialize() {
     return status;
   }
   m_cutflow = new TH1F("cutflow", "cutflow", 5, -0.5, 4.5); //-0.5——4.5,bin =5
+  // m_recEmcHitMap= new TH2F("recEmcHitMap", "recEmcHitMap", 43, 0, 43, 119, 0,
+  // 119); //see
+  // DetectorDescription/Identifier/Identifier-00-02-17/Identifier/EmcID.h
   status = m_histSvc->regHist("/HIST/cutflow", m_cutflow);
+  // status = m_histSvc->regHist("/HIST/recEmcHitMap", m_recEmcHitMap);
 
   NTuplePtr nt1(ntupleSvc(), "FILE1/gen");
   if (nt1)
@@ -127,12 +131,12 @@ StatusCode tautauAlg::initialize() {
     }
   }
 
-  NTuplePtr nt3(ntupleSvc(), "FILE1/select");
+  NTuplePtr nt3(ntupleSvc(), "FILE1/rec");
   if (nt3)
     m_tuple3 = nt3;
   else {
-    m_tuple3 = ntupleSvc()->book("FILE1/select", CLID_ColumnWiseTuple,
-                                 "  para for select");
+    m_tuple3 = ntupleSvc()->book("FILE1/rec", CLID_ColumnWiseTuple,
+                                 " variables at reco-level");
     if (m_tuple3) {
       m_tuple3->addItem("rec_run", m_rec_run);
       m_tuple3->addItem("rec_event", m_rec_event);
@@ -316,7 +320,7 @@ StatusCode tautauAlg::initialize() {
       m_tuple3->addItem("theta_m_22", m_theta_m_22);
       //*****************
 
-      // angle between two charged tracks 
+      // angle between two charged tracks
       m_tuple3->addItem("ee_angle", m_ee_angle);
       m_tuple3->addItem("emu_angle", m_emu_angle);
       m_tuple3->addItem("mue_angle", m_mue_angle);
@@ -542,6 +546,20 @@ StatusCode tautauAlg::initialize() {
       m_tuple3->addIndexedItem("pigam_invam_neg", m_nGam, m_m_pigam_neg);
       m_tuple3->addIndexedItem("kgam_invam_neg", m_nGam, m_m_kgam_neg);
 
+      m_tuple3->addItem("nRecEmcHits", m_nRecEmcHits, 0, 1000);
+      m_tuple3->addIndexedItem("emcHit_id_theta", m_nRecEmcHits,
+                               m_emc_id_theta);
+      m_tuple3->addIndexedItem("emcHit_id_phi", m_nRecEmcHits, m_emc_id_phi);
+      m_tuple3->addIndexedItem("emcHit_energy", m_nRecEmcHits, m_emc_energy);
+      m_tuple3->addIndexedItem("emcHit_bc", m_nRecEmcHits, m_emc_bc);
+      m_tuple3->addIndexedItem("emcHit_tdc", m_nRecEmcHits, m_emc_tdc);
+      m_tuple3->addIndexedItem("emcHit_x", m_nRecEmcHits, m_emc_x);
+      m_tuple3->addIndexedItem("emcHit_y", m_nRecEmcHits, m_emc_y);
+      m_tuple3->addIndexedItem("emcHit_z", m_nRecEmcHits, m_emc_z);
+      m_tuple3->addIndexedItem("emcHit_pos_theta", m_nRecEmcHits,
+                               m_emc_pos_theta);
+      m_tuple3->addIndexedItem("emcHit_pos_phi", m_nRecEmcHits, m_emc_pos_phi);
+
     } else {
       log << MSG::ERROR << "    Cannot book N-tuple:" << long(m_tuple3)
           << endmsg;
@@ -763,7 +781,7 @@ StatusCode tautauAlg::execute() {
     iGood[0] = iGood[1];
     iGood[1] = temidx;
   }
-  
+
   //***************************Select Good Photons******************************
   Vint iGam;
   Vint shelf;
@@ -842,7 +860,7 @@ StatusCode tautauAlg::execute() {
   if (nGam > 3 && nGam < 6) {
     eventFlag = 2;
   }
- 
+
   //------------------ Reconstruct pi0 using Kalman1Cfit-------------------
   int tmp_npi0 = 0;
   int onenumber = 0;
@@ -890,13 +908,12 @@ StatusCode tautauAlg::execute() {
     shelf.erase(shelf.begin() + twonumber - 1);
   }
   m_npi0 = tmp_npi0;
-  
+
   if (tmp_npi0 > m_pi0NumCut) {
     return StatusCode::SUCCESS;
   }
   m_cutflow->Fill(3);
   Ncut[3]++;
-
 
   //***************************Save Information******************************
   // 2020.03.14-15, save information of charged tracks
@@ -918,7 +935,9 @@ StatusCode tautauAlg::execute() {
   for (int i = 0; i < nGood; i++) {
     EvtRecTrackIterator itTrk = evtRecTrkCol->begin() + iGood[i];
     if (!(*itTrk)->isMdcTrackValid()) {
-      throw std::runtime_error("This should not happen. The selected good charged tracks are already required to have valid MdcTrack."); 
+      throw std::runtime_error("This should not happen. The selected good "
+                               "charged tracks are already required to have "
+                               "valid MdcTrack.");
     }
     RecMdcTrack *mdcTrk = (*itTrk)->mdcTrack();
     if ((*itTrk)->isEmcShowerValid()) {
@@ -1178,9 +1197,8 @@ StatusCode tautauAlg::execute() {
           m_mucchi2_2 = 300;
         }
       } // the end of the information of the second track
-    } // If EmcShowerValid
-  } // the end of the information of charged tracks
-
+    }   // If EmcShowerValid
+  }     // the end of the information of charged tracks
 
   int nchrgtrk = itrkWithValidEmcShower.size();
 
@@ -1190,21 +1208,18 @@ StatusCode tautauAlg::execute() {
   }
   m_cutflow->Fill(4);
   Ncut[4]++;
- 
- 
+
   if (itrkWithValidEmcShower[0] == itrkWithValidEmcShower[1]) {
-    throw std::runtime_error("This is not supposed to happen"); 
+    throw std::runtime_error("This is not supposed to happen");
   }
-  //m_cutflow->Fill(5);
+  // m_cutflow->Fill(5);
   Ncut[5]++;
 
   if (!(m_charge_1 * m_charge_2 < 0)) {
-    throw std::runtime_error("This is not supposed to happen"); 
+    throw std::runtime_error("This is not supposed to happen");
   }
-  //m_cutflow->Fill(6);
+  // m_cutflow->Fill(6);
   Ncut[6]++;
-  
-
 
   //-------------- record angle and invarm ------------------
   Hep3Vector tmp1_p[4];
@@ -1280,8 +1295,10 @@ StatusCode tautauAlg::execute() {
 
     for (int j = 0; j < nGam; j++) {
       EvtRecTrackIterator jtTrka = evtRecTrkCol->begin() + iGam[j];
-      if (!(*jtTrka)->isEmcShowerValid()){
-        throw std::runtime_error("This should not happen. The selected good photons are already required to have valid EmcShower");
+      if (!(*jtTrka)->isEmcShowerValid()) {
+        throw std::runtime_error("This should not happen. The selected good "
+                                 "photons are already required to have valid "
+                                 "EmcShower");
       }
       RecEmcShower *emcTrka = (*jtTrka)->emcShower();
       double an_eraw = emcTrka->energy();
@@ -1603,8 +1620,6 @@ StatusCode tautauAlg::execute() {
   m_cthe_kk = thec_kk * 180 / (CLHEP::pi);
   m_cphi_kk = phic_kk * 180 / (CLHEP::pi);
 
-
-
   // calculate total momentum of all tracks and photons
   HepLorentzVector pkal_tot[5];
   HepLorentzVector pkal_Trks[5];
@@ -1778,6 +1793,52 @@ StatusCode tautauAlg::execute() {
         return StatusCode::SUCCESS;
      std::cout << "epi_PTEM" << m_epi_PTEM << "  " << m_pie_PTEM << std::endl;
   */
+
+  // record the hit map in Emc
+  SmartDataPtr<RecEmcHitCol> recEmcHitCol(eventSvc(),
+                                          EventModel::Recon::RecEmcHitCol);
+  if (!recEmcHitCol) {
+    log << MSG::FATAL << "Could not find emcRecHitCol" << endreq;
+    return (StatusCode::FAILURE);
+  }
+  RecEmcHitCol::iterator iRecEmcHit;
+  int nRecEmcHits = 0;
+  for (iRecEmcHit = recEmcHitCol->begin(); iRecEmcHit != recEmcHitCol->end();
+       iRecEmcHit++) {
+    RecEmcHit recEmcHit = *(*iRecEmcHit);
+    unsigned int partId = EmcID::barrel_ec(recEmcHit.getCellId());
+    unsigned int theta = EmcID::theta_module(recEmcHit.getCellId());
+    unsigned int phi = EmcID::phi_module(recEmcHit.getCellId());
+    double energy = recEmcHit.getEnergy();
+    double time = recEmcHit.getTime();
+    HepPoint3D center = recEmcHit.getCenter();
+    // m_recEmcHitMap->Fill(theta, phi, energy);
+    m_emc_id_phi[nRecEmcHits] = phi;
+    m_emc_id_theta[nRecEmcHits] = theta;
+    m_emc_energy[nRecEmcHits] = energy;
+    m_emc_bc[nRecEmcHits] = partId;
+    m_emc_tdc[nRecEmcHits] = time;
+    m_emc_x[nRecEmcHits] = center.x();
+    m_emc_y[nRecEmcHits] = center.y();
+    m_emc_z[nRecEmcHits] = center.z();
+    double r = std::sqrt(center.x() * center.x() + center.y() * center.y());
+    m_emc_pos_theta[nRecEmcHits] =
+        fmod(std::atan2(r, center.z()) + CLHEP::twopi + CLHEP::twopi + pi,
+             CLHEP::twopi) -
+        CLHEP::pi;
+    m_emc_pos_phi[nRecEmcHits] = fmod(std::atan2(center.y(), center.x()) +
+                                          CLHEP::twopi + CLHEP::twopi + pi,
+                                      CLHEP::twopi) -
+                                 CLHEP::pi;
+
+    nRecEmcHits++;
+    if (nRecEmcHits >= 1000) {
+      break;
+    }
+  }
+  // std::cout<<"nRecEmcHits = " << nRecEmcHits << std::endl;
+  m_nRecEmcHits = nRecEmcHits;
+
   // reconstruct pi0 and rho, in the variable, for example mrho_mn,
   // m is the index of pi0, n is the index of charged pi
   if (eventFlag == 1) { // pi0
@@ -2404,8 +2465,8 @@ StatusCode tautauAlg::finalize() {
   log << MSG::INFO << "in finalize()" << endmsg;
   cout << "Ntot=               " << Ncut[0] << endl;
   cout << "nGoodTrack==2       " << Ncut[1] << endl;
-  cout << "nGoodGam>=" <<m_gamNumCut<<"         " << Ncut[2] << endl;
-  cout << "nGoodPi0<=" <<m_pi0NumCut<<"         " << Ncut[3] << endl;
+  cout << "nGoodGam>=" << m_gamNumCut << "         " << Ncut[2] << endl;
+  cout << "nGoodPi0<=" << m_pi0NumCut << "         " << Ncut[3] << endl;
   cout << "nGoodTrack_Emc==2   " << Ncut[4] << endl;
   cout << "differet_id=        " << Ncut[5] << endl;
   cout << "opposite_charge=    " << Ncut[6] << endl;
