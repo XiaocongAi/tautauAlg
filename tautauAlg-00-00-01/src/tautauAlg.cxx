@@ -48,7 +48,7 @@ StatusCode tautauAlg::initialize() {
     log << MSG::INFO << "Unable to retrieve pointer to THistSvc" << endreq;
     return status;
   }
-  m_cutflow = new TH1F("cutflow", "cutflow", 5, -0.5, 4.5); //-0.5——4.5,bin =5
+  m_cutflow = new TH1F("cutflow", "cutflow", 6, -0.5, 5.5); //-0.5——5.5,bin = 6
   // m_recEmcHitMap= new TH2F("recEmcHitMap", "recEmcHitMap", 43, 0, 43, 119, 0,
   // 119); //see
   // DetectorDescription/Identifier/Identifier-00-02-17/Identifier/EmcID.h
@@ -915,8 +915,12 @@ StatusCode tautauAlg::execute() {
   m_cutflow->Fill(3);
   Ncut[3]++;
 
-  //***************************Save Information******************************
+  //***************************Save Information and
+  //PID******************************
   // 2020.03.14-15, save information of charged tracks
+  int npi_pid = 0;
+  int nele_pid = 0;
+  int nmu_pid = 0;
   double theta_1;
   double theta_2;
   double phi_1;
@@ -1004,10 +1008,22 @@ StatusCode tautauAlg::execute() {
           m_probk_1 = -1.0;
           m_probp_1 = -1.0;
         }
-        // limit MUC numhit ( Consider conjugation )
-        // std::cout << " e mu pi k p = " << m_probe_1 <<"  " << m_probmu_1 << "
-        // " << m_probpi_1 << "  " << m_probk_1 << "  " << m_probp_1 <<
-        // std::endl;
+
+        double tmp_probe_1 = m_probe_1;
+        double tmp_probmu_1 = m_probmu_1;
+        double tmp_probpi_1 = m_probpi_1;
+        if (tmp_probpi_1 > 0.001 && tmp_probpi_1 > tmp_probe_1 &&
+            tmp_probpi_1 > tmp_probmu_1) {
+          npi_pid++;
+        }
+        if (tmp_probe_1 > 0.001 && tmp_probe_1 > tmp_probpi_1 &&
+            tmp_probe_1 > tmp_probmu_1) {
+          nele_pid++;
+        }
+        if (tmp_probmu_1 > 0.001 && tmp_probmu_1 > tmp_probpi_1 &&
+            tmp_probmu_1 > tmp_probe_1) {
+          nmu_pid++;
+        }
 
         // TOF information for the first track
         if ((*itTrk)->isTofTrackValid()) {
@@ -1132,6 +1148,23 @@ StatusCode tautauAlg::execute() {
           m_probp_2 = -1.0;
         }
 
+        double tmp_probe_2 = m_probe_2;
+        double tmp_probmu_2 = m_probmu_2;
+        double tmp_probpi_2 = m_probpi_2;
+
+        if (tmp_probpi_2 > 0.001 && tmp_probpi_2 > tmp_probe_2 &&
+            tmp_probpi_2 > tmp_probmu_2) {
+          npi_pid++;
+        }
+        if (tmp_probe_2 > 0.001 && tmp_probe_2 > tmp_probpi_2 &&
+            tmp_probe_2 > tmp_probmu_2) {
+          nele_pid++;
+        }
+        if (tmp_probmu_2 > 0.001 && tmp_probmu_2 > tmp_probpi_2 &&
+            tmp_probmu_2 > tmp_probe_2) {
+          nmu_pid++;
+        }
+
         // TOF information for the second track
         if ((*itTrk)->isTofTrackValid()) {
           SmartRefVector<RecTofTrack> tofTrkCol = (*itTrk)->tofTrack();
@@ -1208,18 +1241,23 @@ StatusCode tautauAlg::execute() {
   }
   m_cutflow->Fill(4);
   Ncut[4]++;
-
+ 
+ 
   if (itrkWithValidEmcShower[0] == itrkWithValidEmcShower[1]) {
     throw std::runtime_error("This is not supposed to happen");
   }
-  // m_cutflow->Fill(5);
-  Ncut[5]++;
 
   if (!(m_charge_1 * m_charge_2 < 0)) {
     throw std::runtime_error("This is not supposed to happen");
   }
-  // m_cutflow->Fill(6);
-  Ncut[6]++;
+
+
+  // 2024.04.25,remove two-pi or two-lep event
+  if (npi_pid != 1 || (nele_pid + nmu_pid) != 1) {
+    return StatusCode::SUCCESS;
+  }
+  m_cutflow->Fill(5);
+  Ncut[5]++;
 
   //-------------- record angle and invarm ------------------
   Hep3Vector tmp1_p[4];
@@ -2463,12 +2501,13 @@ bool tautauAlg::correctLeptonMomentumWithFSRPhoton(
 StatusCode tautauAlg::finalize() {
   MsgStream log(msgSvc(), name());
   log << MSG::INFO << "in finalize()" << endmsg;
-  cout << "Ntot=               " << Ncut[0] << endl;
-  cout << "nGoodTrack==2       " << Ncut[1] << endl;
-  cout << "nGoodGam>=" << m_gamNumCut << "         " << Ncut[2] << endl;
-  cout << "nGoodPi0<=" << m_pi0NumCut << "         " << Ncut[3] << endl;
-  cout << "nGoodTrack_Emc==2   " << Ncut[4] << endl;
-  cout << "differet_id=        " << Ncut[5] << endl;
-  cout << "opposite_charge=    " << Ncut[6] << endl;
+  cout << "Ntot=                    " << Ncut[0] << endl;
+  cout << "nGoodTrack==2            " << Ncut[1] << endl;
+  cout << "nGoodGam>=" << m_gamNumCut << "              " << Ncut[2] << endl;
+  cout << "nGoodPi0<=" << m_pi0NumCut << "              " << Ncut[3] << endl;
+  cout << "nGoodTrack_Emc==2        " << Ncut[4] << endl;
+  cout << "npi_pid==1&&nLep_pid==1  " << Ncut[5] << endl;
+  // cout << "differet_id=        " << Ncut[5] << endl;
+  // cout << "opposite_charge=    " << Ncut[6] << endl;
   return StatusCode::SUCCESS;
 }
